@@ -28,7 +28,7 @@ http://localhost:5000
 
 ---
 
-### 🔹 2. Secure Tunnel Setup (Optional)
+### 🔹 2. Secure Tunnel Setup 
 
 * To allow access from other devices or networks, a secure tunnel is created:
 
